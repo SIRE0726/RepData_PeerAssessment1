@@ -1,0 +1,118 @@
+---
+title: "Project 1"
+author: "Sai Praneeth Vupputuri"
+date: "25/08/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+Importing the data after setting the working directory and importing readr library
+
+```{r}
+library(readr)
+library(dplyr)
+setwd("~/Coursera/reproducible research/repdata_data_activity")
+activity <- read_csv("activity.csv", na = "NA")
+```
+Converting date column into the appropriate format and aggregating the data date wise using the aggregate function
+```{r}
+activity$date <- as.Date(activity$date, "%Y-%m-%d")
+final_data <- aggregate(steps~date, activity,sum)
+```
+
+Using the "final_data" dataframe to build a histogram with the base plot system
+
+```{r, echo=TRUE}
+hist(final_data$steps, xlab = "Number of total steps", ylab = "Number of Days", main = "Histogram of Total steps")
+```
+
+Displaying the mean  of the aggregated dataset
+```{r}
+aggregate(steps~date,activity,mean)
+```
+
+Displaying the  median of the aggregated dataset
+```{r}
+aggregate(steps~date,activity,FUN = "median")
+```
+
+Calculating the mean of steps for each interval 
+```{r}
+meaninterval <- aggregate(steps~interval,activity, mean)
+```
+
+Plotting the mean interval data
+```{r}
+plot(meaninterval, type = "l", xlab= "Intervals", ylab = "Steps", main = "Mean number of steps for 5 Second Intervals")
+```
+
+Finding which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r}
+max <- which.max(meaninterval$steps)
+meaninterval[max,]
+```
+As you can see the maximum steps from average is 206 for interval 835
+
+Finding the number of NA values using table function 
+```{r}
+table(is.na(activity$steps))
+```
+As shown abovw, the total number of NA values is 2304
+
+Before we can substitute, I am first separting out the data into two parts, With NA values and without NA values
+```{r}
+clean <- activity[!is.na(activity$steps),]
+nadata<- activity[is.na(activity$steps),]
+```
+Then merging the nadata dataframe and meaninterval dataframe
+``` {r}
+newdata<-merge(nadata, meaninterval, by=c("interval"))
+names(newdata) = sub("steps.y", "steps", names(newdata))
+newdata$steps.x<- NULL
+```
+Finally Merging clean dataframe with the mean-populated na dataset
+```{r}
+updatedset<- rbind(clean,newdata)
+```
+Checking if there are still any NA values in the Updated dataset
+```{r}
+table(is.na(updatedset$steps))
+```
+The lack of any true values in the table indicates that all missing NA values have been successfully replaced
+```{r}
+updatedset_final <- aggregate(steps~date, updatedset, sum)
+hist(updatedset_final$steps, xlab = "Number of total steps", ylab = "Number of Days", main = "Histogram of Total steps")
+```
+
+
+Displaying the mean  of the new dataset
+```{r}
+aggregate(steps~date,updatedset_final,mean)
+```
+
+Displaying the  median of the new dataset
+```{r}
+aggregate(steps~date,updatedset_final,FUN = "median")
+```
+Creating a new "day" column and using that to create factor column that will contain weekend and weekday information
+```{r}
+updatedset$day <- weekdays(as.Date(updatedset$date))
+updatedset$DayCategory <- ifelse(updatedset$day %in% c("Saturday", "Sunday"), "Weekend", "Weekday")
+head(updatedset)
+```
+
+```{r}
+weekend <- filter(updatedset, updatedset$DayCategory == "Weekend")
+weekend_final <- aggregate(steps~interval, weekend, mean)
+weekday <- filter(updatedset, updatedset$DayCategory == "Weekday")
+weekday_final <- aggregate(steps~interval, weekday, mean)
+par(mfrow=c(2,1))
+plot(weekday_final, type = "l", main = "weekday")
+plot(weekend_final, type = "l", main = "weekend")
+```
+
